@@ -1,0 +1,147 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Patient {
+  id               String             @id @default(cuid())
+  fullName         String
+  age              Int
+  gender           String
+  phone            String
+  bloodGroup       String
+  address          String
+  emergencyContact String?
+  medicalNotes     String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  appointments     Appointment[]
+  emergencies      EmergencyRequest[]
+  bloodRequests    BloodRequest[]
+}
+
+model Doctor {
+  id           String        @id @default(cuid())
+  name         String
+  specialty    String
+  department   String
+  phone        String
+  email        String
+  available    Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  appointments Appointment[]
+}
+
+model Appointment {
+  id        String   @id @default(cuid())
+  patientId String
+  doctorId  String
+  date      String
+  time      String
+  reason    String
+  status    String   @default("Pending") // Pending, Confirmed, Completed, Cancelled
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  patient   Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctor    Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+}
+
+model Ambulance {
+  id             String             @id @default(cuid())
+  vehicleNumber  String             @unique
+  driverName     String
+  contact        String
+  status         String             @default("Available")
+  baseLocation   String             @default("Central Station")
+  latitude       Float              @default(28.6139)
+  longitude      Float              @default(77.2090)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  emergencies    EmergencyRequest[]
+}
+
+model EmergencyRequest {
+  id                String                   @id @default(cuid())
+  patientId         String
+  emergencyType     String
+  location          String
+    latitude          Float                    @default(28.6139)
+  longitude         Float                    @default(77.2090)
+  priority          String                   @default("HIGH") // HIGH, MEDIUM, LOW
+  ambulanceRequired Boolean                  @default(true)
+  bloodRequired     Boolean                  @default(false)
+  status            String                   @default("NEW") // NEW, ASSIGNED, IN_PROGRESS, RESOLVED
+  ambulanceId       String?
+  hospitalId        String?
+  notes             String?
+  resolvedAt        DateTime?
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+
+  patient           Patient                  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  ambulance         Ambulance?               @relation(fields: [ambulanceId], references: [id], onDelete: SetNull)
+  hospital          Hospital?                @relation(fields: [hospitalId], references: [id], onDelete: SetNull)
+  bloodRequests     BloodRequest[]
+  timelineEvents    EmergencyTimelineEvent[]
+}
+
+model EmergencyTimelineEvent {
+  id          String           @id @default(cuid())
+  emergencyId String
+  stage       String           // CREATED, PRIORITY_IDENTIFIED, AMBULANCE_ASSIGNED, EN_ROUTE, PATIENT_REACHED, RESOLVED
+  title       String
+  description String
+  timestamp   DateTime         @default(now())
+
+  emergency   EmergencyRequest @relation(fields: [emergencyId], references: [id], onDelete: Cascade)
+}
+
+model BloodRequest {
+  id            String            @id @default(cuid())
+  patientId     String
+  emergencyId   String?
+  bloodGroup    String
+  unitsRequired Int
+  urgency       String            @default("Normal") // Critical, Urgent, Normal
+  status        String            @default("Pending") // Pending, Matching, Fulfilled
+  notes         String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  patient       Patient           @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  emergency     EmergencyRequest? @relation(fields: [emergencyId], references: [id], onDelete: SetNull)
+}
+
+model BloodInventory {
+  id             String   @id @default(cuid())
+  bloodGroup     String   @unique
+  unitsAvailable Int      @default(0)
+  lastUpdated    DateTime @default(now()) @updatedAt
+}
+
+model Hospital {
+  id               String             @id @default(cuid())
+  name             String
+  address          String
+  latitude         Float
+  longitude        Float
+  phone            String
+  emergencyReady   Boolean            @default(true)
+  totalBeds        Int                @default(0)
+  availableBeds    Int                @default(0)
+  departmentStatus String             @default("Operational") // Operational, Limited, Diverting
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  emergencies      EmergencyRequest[]
+}
